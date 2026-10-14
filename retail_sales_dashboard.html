@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Retail Sales Analytics Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;600;700&display=swap');
+
+  :root {
+    --bg:         #0d0f14;
+    --surface:    #151820;
+    --surface2:   #1c2030;
+    --border:     #252a38;
+    --accent:     #6c63ff;
+    --accent2:    #ff6584;
+    --accent3:    #43e97b;
+    --accent4:    #f9a825;
+    --text:       #e8eaf0;
+    --muted:      #7b82a0;
+    --card-glow:  rgba(108,99,255,.08);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo { font-family: 'Space Grotesk', sans-serif; font-size: 1.1rem; font-weight: 700; letter-spacing: .5px; }
+  .logo span { color: var(--accent); }
+  .header-meta { font-size: .78rem; color: var(--muted); }
+  .live-dot {
+    display: inline-block; width: 7px; height: 7px;
+    background: var(--accent3); border-radius: 50%;
+    margin-right: 6px;
+    animation: pulse 1.8s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* ── TABS ── */
+  .tab-bar {
+    display: flex;
+    gap: 4px;
+    padding: 16px 32px 0;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .tab-btn {
+    padding: 9px 20px;
+    border-radius: 8px 8px 0 0;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    font-family: 'Inter', sans-serif;
+    font-size: .82rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .tab-btn:hover { color: var(--text); background: var(--surface2); }
+  .tab-btn.active {
+    color: var(--text);
+    background: var(--bg);
+    border-color: var(--border);
+    border-bottom-color: var(--bg);
+  }
+
+  /* ── LAYOUT ── */
+  .tab-content { display: none; padding: 28px 32px; }
+  .tab-content.active { display: block; }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .span-2 { grid-column: span 2; }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 22px;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute; top:0; left:0; right:0; height:2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    opacity: 0;
+    transition: opacity .3s;
+  }
+  .card:hover::before { opacity: 1; }
+  .card:hover { background: var(--surface2); }
+
+  /* ── KPI CARDS ── */
+  .kpi-card { padding: 18px 20px; }
+  .kpi-label { font-size: .72rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 8px; }
+  .kpi-value { font-family: 'Space Grotesk', sans-serif; font-size: 1.7rem; font-weight: 700; line-height: 1; }
+  .kpi-sub { font-size: .75rem; color: var(--muted); margin-top: 6px; }
+  .kpi-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 20px;
+    font-size: .7rem; font-weight: 600; margin-top: 6px;
+  }
+  .badge-green { background: rgba(67,233,123,.15); color: var(--accent3); }
+  .badge-red   { background: rgba(255,101,132,.15); color: var(--accent2); }
+  .badge-blue  { background: rgba(108,99,255,.15);  color: var(--accent); }
+  .badge-gold  { background: rgba(249,168,37,.15);  color: var(--accent4); }
+
+  /* ── CHART TITLES ── */
+  .card-title { font-size: .8rem; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin-bottom: 16px; }
+  .card-title span { color: var(--text); }
+
+  /* ── TABLE ── */
+  .data-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+  .data-table th {
+    padding: 10px 14px; text-align: left;
+    font-size: .7rem; text-transform: uppercase; letter-spacing: .8px;
+    color: var(--muted); border-bottom: 1px solid var(--border);
+  }
+  .data-table td { padding: 10px 14px; border-bottom: 1px solid rgba(37,42,56,.6); }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: var(--surface2); }
+
+  .rank-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 6px;
+    font-size: .7rem; font-weight: 700;
+  }
+  .rank-1 { background: rgba(249,168,37,.2); color: var(--accent4); }
+  .rank-2 { background: rgba(108,99,255,.15); color: var(--accent); }
+  .rank-3 { background: rgba(67,233,123,.15); color: var(--accent3); }
+  .rank-other { background: var(--border); color: var(--muted); }
+
+  /* ── DONUT LEGEND ── */
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: .75rem; color: var(--muted); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ── PROGRESS BARS ── */
+  .prog-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .prog-label { width: 110px; font-size: .78rem; flex-shrink: 0; }
+  .prog-bar-wrap { flex: 1; background: var(--border); border-radius: 6px; height: 7px; }
+  .prog-bar { height: 7px; border-radius: 6px; }
+  .prog-val { width: 56px; text-align: right; font-size: .75rem; color: var(--muted); }
+
+  /* ── STATUS BADGES ── */
+  .status { padding: 2px 10px; border-radius: 20px; font-size: .7rem; font-weight: 600; }
+  .status-delivered { background: rgba(67,233,123,.15); color: var(--accent3); }
+  .status-shipped   { background: rgba(108,99,255,.15);  color: var(--accent); }
+  .status-cancelled { background: rgba(255,101,132,.15); color: var(--accent2); }
+  .status-returned  { background: rgba(249,168,37,.15);  color: var(--accent4); }
+
+  /* ── SECTION TITLE ── */
+  .section-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.05rem; font-weight: 700;
+    margin-bottom: 20px; color: var(--text);
+  }
+  .section-title small { color: var(--muted); font-size: .75rem; font-weight: 400; margin-left: 8px; }
+
+  /* ── INVENTORY ── */
+  .stock-alert { border-left: 3px solid var(--accent2); }
+  .stock-ok    { border-left: 3px solid var(--accent3); }
+
+  canvas { max-height: 280px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">📊 Retail<span>Sales</span> Analytics</div>
+  <div class="header-meta"><span class="live-dot"></span>2023–2024 · 2,000 Transactions · 12 Stores · India</div>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('overview')">📈 Overview</button>
+  <button class="tab-btn" onclick="switchTab('sales')">💰 Sales Analysis</button>
+  <button class="tab-btn" onclick="switchTab('products')">📦 Products</button>
+  <button class="tab-btn" onclick="switchTab('customers')">👤 Customers</button>
+  <button class="tab-btn" onclick="switchTab('inventory')">🏪 Inventory</button>
+</div>
+
+<!-- ══════════════════════════════════════════
+     TAB 1 — OVERVIEW
+══════════════════════════════════════════ -->
+<div id="tab-overview" class="tab-content active">
+  <div class="section-title">Executive Overview <small>Full Period Summary · Jan 2023 – Dec 2024</small></div>
+
+  <div class="kpi-row">
+    <div class="card kpi-card">
+      <div class="kpi-label">Total Revenue</div>
+      <div class="kpi-value" style="color:#6c63ff">₹6.77 Cr</div>
+      <div class="kpi-sub">Net Amount (after discounts)</div>
+      <span class="kpi-badge badge-blue">2 Years</span>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Total Orders</div>
+      <div class="kpi-value" style="color:#43e97b">2,000</div>
+      <div class="kpi-sub">Transactions recorded</div>
+      <span class="kpi-badge badge-green">Across 12 Stores</span>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Avg Order Value</div>
+      <div class="kpi-value" style="color:#f9a825">₹33,834</div>
+      <div class="kpi-sub">Per transaction (net)</div>
+      <span class="kpi-badge badge-gold">↑ Driven by Electronics</span>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Delivery Rate</div>
+      <div class="kpi-value" style="color:#43e97b">76.2%</div>
+      <div class="kpi-sub">1,524 of 2,000 delivered</div>
+      <span class="kpi-badge badge-red">9.2% Cancelled</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card span-2">
+      <div class="card-title">📅 Monthly Revenue Trend — <span>2023 vs 2024</span></div>
+      <canvas id="trendChart"></canvas>
+    </div>
+  </div>
+
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-title">🌍 Revenue by <span>Region</span></div>
+      <canvas id="regionPie"></canvas>
+      <div class="legend" id="regionLegend"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📦 Revenue by <span>Category</span></div>
+      <canvas id="catPie"></canvas>
+      <div class="legend" id="catLegend"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🚦 Order <span>Status Split</span></div>
+      <canvas id="statusDonut"></canvas>
+      <div class="legend" id="statusLegend"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     TAB 2 — SALES ANALYSIS
+══════════════════════════════════════════ -->
+<div id="tab-sales" class="tab-content">
+  <div class="section-title">Sales Deep Dive <small>Region · Payment · Discount Analysis</small></div>
+
+  <div class="kpi-row">
+    <div class="card kpi-card">
+      <div class="kpi-label">West Region</div>
+      <div class="kpi-value" style="color:#6c63ff">₹2.42 Cr</div>
+      <div class="kpi-sub">Top performing region</div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">2024 Revenue</div>
+      <div class="kpi-value" style="color:#43e97b">₹3.53 Cr</div>
+      <div class="kpi-sub">vs ₹3.24 Cr in 2023</div>
+      <span class="kpi-badge badge-green">+9% YoY</span>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Top Payment</div>
+      <div class="kpi-value" style="color:#f9a825">Cash</div>
+      <div class="kpi-sub">423 of 2,000 transactions</div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Total Discount Given</div>
+      <div class="kpi-value" style="color:#ff6584">~₹72L</div>
+      <div class="kpi-sub">Estimated discount value</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">🌐 Revenue by <span>Region (Bar)</span></div>
+      <canvas id="regionBar"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">💳 Transactions by <span>Payment Method</span></div>
+      <canvas id="paymentBar"></canvas>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">📊 Year-over-Year <span>Monthly Comparison</span></div>
+      <canvas id="yoyChart"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">🏷️ Revenue by <span>Customer Segment</span></div>
+      <canvas id="segmentBar"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     TAB 3 — PRODUCTS
+══════════════════════════════════════════ -->
+<div id="tab-products" class="tab-content">
+  <div class="section-title">Product Performance <small>Top Sellers · Category Mix · Pricing</small></div>
+
+  <div class="kpi-row">
+    <div class="card kpi-card">
+      <div class="kpi-label">Top Product</div>
+      <div class="kpi-value" style="color:#6c63ff;font-size:1.1rem">Laptop</div>
+      <div class="kpi-sub">₹2.86 Cr revenue</div>
+      <span class="kpi-badge badge-blue">42.3% of total</span>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Top Category</div>
+      <div class="kpi-value" style="color:#43e97b;font-size:1.3rem">Electronics</div>
+      <div class="kpi-sub">₹4.83 Cr · 71.4% share</div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Total Products</div>
+      <div class="kpi-value" style="color:#f9a825">25</div>
+      <div class="kpi-sub">Across 4 categories</div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Avg Unit Price</div>
+      <div class="kpi-value" style="color:#ff6584">₹8,400</div>
+      <div class="kpi-sub">Median across catalog</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">🏆 Top 10 Products by <span>Revenue</span></div>
+      <canvas id="topProductsBar"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">🍰 Category Revenue <span>Mix</span></div>
+      <canvas id="catRevDonut"></canvas>
+      <div class="legend" id="catRevLegend"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📋 Top Products <span>Table</span></div>
+    <table class="data-table">
+      <thead><tr>
+        <th>#</th><th>Product</th><th>Category</th><th>Unit Price</th><th>Est. Revenue</th><th>Revenue Share</th>
+      </tr></thead>
+      <tbody id="productTable"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     TAB 4 — CUSTOMERS
+══════════════════════════════════════════ -->
+<div id="tab-customers" class="tab-content">
+  <div class="section-title">Customer Analytics <small>Segments · Geography · Behaviour</small></div>
+
+  <div class="kpi-row">
+    <div class="card kpi-card">
+      <div class="kpi-label">Total Customers</div>
+      <div class="kpi-value" style="color:#6c63ff">200</div>
+      <div class="kpi-sub">Unique customer IDs</div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Active Buyers</div>
+      <div class="kpi-value" style="color:#43e97b">~175</div>
+      <div class="kpi-sub">Made at least 1 purchase</div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Top Segment</div>
+      <div class="kpi-value" style="color:#f9a825;font-size:1.1rem">Retail</div>
+      <div class="kpi-sub">₹2.04 Cr · 30.2%</div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Avg Spend/Customer</div>
+      <div class="kpi-value" style="color:#ff6584">₹3.38L</div>
+      <div class="kpi-sub">Total revenue ÷ customers</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">👥 Revenue by <span>Customer Segment</span></div>
+      <canvas id="custSegDonut"></canvas>
+      <div class="legend" id="custSegLegend"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🔄 Order Status by <span>Segment</span></div>
+      <canvas id="segStatusBar"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📋 Top Performing <span>Stores (Customer View)</span></div>
+    <table class="data-table">
+      <thead><tr>
+        <th>#</th><th>Store Name</th><th>City</th><th>Region</th><th>Revenue</th><th>Performance</th>
+      </tr></thead>
+      <tbody id="storeTable"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     TAB 5 — INVENTORY
+══════════════════════════════════════════ -->
+<div id="tab-inventory" class="tab-content">
+  <div class="section-title">Inventory Health <small>Stock Levels · Reorder Alerts · Store Coverage</small></div>
+
+  <div class="kpi-row">
+    <div class="card kpi-card">
+      <div class="kpi-label">Total SKU Records</div>
+      <div class="kpi-value" style="color:#6c63ff">300</div>
+      <div class="kpi-sub">Store–product combinations</div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Low / No Stock</div>
+      <div class="kpi-value" style="color:#ff6584">132</div>
+      <div class="kpi-sub">At or below reorder level</div>
+      <span class="kpi-badge badge-red">44% of records</span>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Healthy Stock</div>
+      <div class="kpi-value" style="color:#43e97b">168</div>
+      <div class="kpi-sub">Above reorder threshold</div>
+      <span class="kpi-badge badge-green">56% of records</span>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Stores Monitored</div>
+      <div class="kpi-value" style="color:#f9a825">12</div>
+      <div class="kpi-sub">Across North/South/East/West</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">⚠️ Stock Health <span>Overview</span></div>
+      <canvas id="stockHealth"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">📍 Stock Status by <span>Category</span></div>
+      <canvas id="stockCat"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🚨 Inventory <span>Alert Summary</span></div>
+    <div id="inventoryAlerts"></div>
+  </div>
+</div>
+
+<!-- ══ SCRIPTS ══ -->
+<script>
+// ── DATA ──────────────────────────────────────────────────────
+const COLORS = ['#6c63ff','#ff6584','#43e97b','#f9a825','#38b2f7','#a78bfa'];
+
+const monthly2023 = [2253852,1976989,2877613,3093188,2649088,2710100,3106283,3186776,2665839,2593315,2890460,2326218];
+const monthly2024 = [4414885,1922200,2721963,2583694,3764038,2847180,2436674,2812759,3063234,3065165,2558001,3161926];
+const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+const regionRevenue   = { North: 16400389, West: 24244103, South: 21689064, East: 5334391 };
+const categoryRevenue = { Electronics: 48300611, Furniture: 15520366, Accessories: 2309635, Stationery: 1537335 };
+const statusData      = { Delivered: 1524, Shipped: 198, Cancelled: 183, Returned: 95 };
+const paymentData     = { Cash: 423, 'Debit Card': 406, 'Net Banking': 401, UPI: 394, 'Credit Card': 376 };
+const segmentRevenue  = { Retail: 20407546, SME: 18066462, Corporate: 14645446, Government: 14548492 };
+
+const topProducts = [
+  { name: 'Laptop',          cat: 'Electronics', price: 45000, rev: 28563750 },
+  { name: 'Monitor 24 inch', cat: 'Electronics', price: 12000, rev: 8003484  },
+  { name: 'Office Chair',    cat: 'Furniture',   price: 8500,  rev: 5060588  },
+  { name: 'File Cabinet',    cat: 'Furniture',   price: 4500,  rev: 3740695  },
+  { name: 'Printer',         cat: 'Electronics', price: 9500,  rev: 3622347  },
+  { name: 'Office Desk',     cat: 'Furniture',   price: 7000,  rev: 2896290  },
+  { name: 'Tablet',          cat: 'Electronics', price: 22000, rev: 2711256  },
+  { name: 'Headphones',      cat: 'Accessories', price: 3500,  rev: 1089742  },
+  { name: 'Pen Drive 64GB',  cat: 'Accessories', price: 599,   rev: 724481   },
+  { name: 'A4 Paper (Ream)', cat: 'Stationery',  price: 250,   rev: 614934   },
+];
+
+const topStores = [
+  { name: 'Bengaluru Whitefield', city: 'Bengaluru', region: 'South', rev: 7889627 },
+  { name: 'Mumbai Andheri',       city: 'Mumbai',    region: 'West',  rev: 7618128 },
+  { name: 'Mumbai Dadar',         city: 'Mumbai',    region: 'West',  rev: 6428762 },
+  { name: 'Jaipur MI Rd',         city: 'Jaipur',    region: 'North', rev: 6021838 },
+  { name: 'Pune Kothrud',         city: 'Pune',      region: 'West',  rev: 5344760 },
+  { name: 'Delhi Central',        city: 'Delhi',     region: 'North', rev: 5102345 },
+  { name: 'Chennai T Nagar',      city: 'Chennai',   region: 'South', rev: 4812233 },
+  { name: 'Hyderabad Banjara',    city: 'Hyderabad', region: 'South', rev: 4388123 },
+];
+
+// ── HELPERS ──────────────────────────────────────────────────
+function fmt(n) { return '₹' + (n >= 1e7 ? (n/1e7).toFixed(2)+' Cr' : n >= 1e5 ? (n/1e5).toFixed(1)+' L' : n.toLocaleString('en-IN')); }
+function pct(v, total) { return (v/total*100).toFixed(1)+'%'; }
+
+function donut(id, labels, data, legendId) {
+  const ctx = document.getElementById(id).getContext('2d');
+  const total = data.reduce((a,b)=>a+b,0);
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data, backgroundColor: COLORS, borderColor: '#0d0f14', borderWidth: 3, hoverOffset: 6 }] },
+    options: {
+      cutout: '65%', responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${c.label}: ${fmt(c.parsed)} (${pct(c.parsed,total)})` } } }
+    }
+  });
+  if(legendId) {
+    const el = document.getElementById(legendId);
+    labels.forEach((l,i) => {
+      el.innerHTML += `<div class="legend-item"><span class="legend-dot" style="background:${COLORS[i]}"></span>${l}</div>`;
+    });
+  }
+}
+
+function bar(id, labels, datasets, opts={}) {
+  const ctx = document.getElementById(id).getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      indexAxis: opts.horizontal ? 'y' : 'x',
+      plugins: { legend: { labels: { color: '#7b82a0', font: { size: 11 } } } },
+      scales: {
+        x: { grid: { color: '#1c2030' }, ticks: { color: '#7b82a0', font: { size: 10 } } },
+        y: { grid: { color: '#1c2030' }, ticks: { color: '#7b82a0', font: { size: 10 },
+             callback: v => opts.currency ? '₹'+Math.round(v/100000)+'L' : v } }
+      },
+      ...opts.extra
+    }
+  });
+}
+
+// ── TAB SWITCH ───────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// ── CHARTS ───────────────────────────────────────────────────
+window.onload = function() {
+
+  // OVERVIEW — Trend
+  bar('trendChart', months,
+    [ { label: '2023', data: monthly2023, backgroundColor: 'rgba(108,99,255,.6)',  borderColor: '#6c63ff', borderWidth: 2, borderRadius: 4 },
+      { label: '2024', data: monthly2024, backgroundColor: 'rgba(67,233,123,.45)', borderColor: '#43e97b', borderWidth: 2, borderRadius: 4 } ],
+    { currency: true });
+
+  // OVERVIEW — Region Pie
+  donut('regionPie', Object.keys(regionRevenue), Object.values(regionRevenue), 'regionLegend');
+
+  // OVERVIEW — Category Pie
+  donut('catPie', Object.keys(categoryRevenue), Object.values(categoryRevenue), 'catLegend');
+
+  // OVERVIEW — Status Donut
+  const statusCols = ['#43e97b','#6c63ff','#ff6584','#f9a825'];
+  const sLabels = Object.keys(statusData), sData = Object.values(statusData);
+  const ctx3 = document.getElementById('statusDonut').getContext('2d');
+  new Chart(ctx3, { type:'doughnut', data:{labels:sLabels, datasets:[{data:sData, backgroundColor:statusCols, borderColor:'#0d0f14', borderWidth:3}]},
+    options:{cutout:'65%', responsive:true, plugins:{legend:{display:false}}} });
+  const sl = document.getElementById('statusLegend');
+  sLabels.forEach((l,i) => sl.innerHTML += `<div class="legend-item"><span class="legend-dot" style="background:${statusCols[i]}"></span>${l}: ${sData[i]}</div>`);
+
+  // SALES — Region Bar
+  bar('regionBar', Object.keys(regionRevenue), [{
+    label:'Revenue', data: Object.values(regionRevenue),
+    backgroundColor:['rgba(108,99,255,.7)','rgba(67,233,123,.7)','rgba(255,101,132,.7)','rgba(249,168,37,.7)'],
+    borderRadius: 6
+  }], { currency: true });
+
+  // SALES — Payment Bar
+  bar('paymentBar', Object.keys(paymentData), [{
+    label:'Transactions', data: Object.values(paymentData),
+    backgroundColor: COLORS.map(c=>c+'bb'),
+    borderRadius: 6
+  }]);
+
+  // SALES — YoY
+  bar('yoyChart', months,
+    [ { label: '2023', data: monthly2023, backgroundColor: 'rgba(108,99,255,.5)', borderColor: '#6c63ff', borderWidth: 2, borderRadius: 3 },
+      { label: '2024', data: monthly2024, backgroundColor: 'rgba(255,101,132,.5)', borderColor: '#ff6584', borderWidth: 2, borderRadius: 3 } ],
+    { currency: true });
+
+  // SALES — Segment Bar
+  bar('segmentBar', Object.keys(segmentRevenue), [{
+    label:'Revenue', data: Object.values(segmentRevenue),
+    backgroundColor:['rgba(108,99,255,.7)','rgba(67,233,123,.7)','rgba(249,168,37,.7)','rgba(255,101,132,.7)'],
+    borderRadius: 6
+  }], { currency: true });
+
+  // PRODUCTS — Top Products Horizontal Bar
+  const ctx5 = document.getElementById('topProductsBar').getContext('2d');
+  new Chart(ctx5, {
+    type: 'bar',
+    data: { labels: topProducts.map(p=>p.name), datasets: [{ data: topProducts.map(p=>p.rev), backgroundColor: topProducts.map((_,i)=>COLORS[i%COLORS.length]+'bb'), borderRadius:4 }] },
+    options: { indexAxis:'y', responsive:true, plugins:{legend:{display:false}},
+      scales: { x:{grid:{color:'#1c2030'},ticks:{color:'#7b82a0',callback:v=>'₹'+Math.round(v/100000)+'L'}}, y:{grid:{color:'#1c2030'},ticks:{color:'#7b82a0',font:{size:10}}} } }
+  });
+
+  // PRODUCTS — Cat Revenue Donut
+  donut('catRevDonut', Object.keys(categoryRevenue), Object.values(categoryRevenue), 'catRevLegend');
+
+  // PRODUCTS TABLE
+  const total = topProducts.reduce((a,p)=>a+p.rev,0);
+  const ptBody = document.getElementById('productTable');
+  topProducts.forEach((p,i) => {
+    const pct2 = (p.rev/67667947*100).toFixed(1);
+    const rCls = i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-other';
+    ptBody.innerHTML += `<tr>
+      <td><span class="rank-badge ${rCls}">${i+1}</span></td>
+      <td>${p.name}</td>
+      <td><span class="kpi-badge badge-blue">${p.cat}</span></td>
+      <td>₹${p.price.toLocaleString('en-IN')}</td>
+      <td>${fmt(p.rev)}</td>
+      <td>
+        <div class="prog-bar-wrap"><div class="prog-bar" style="width:${pct2}%;background:${COLORS[i%COLORS.length]}"></div></div>
+        <span style="font-size:.72rem;color:var(--muted)">${pct2}%</span>
+      </td>
+    </tr>`;
+  });
+
+  // CUSTOMERS — Segment Donut
+  donut('custSegDonut', Object.keys(segmentRevenue), Object.values(segmentRevenue), 'custSegLegend');
+
+  // CUSTOMERS — Seg Status (Stacked)
+  const ctx6 = document.getElementById('segStatusBar').getContext('2d');
+  new Chart(ctx6, {
+    type: 'bar',
+    data: {
+      labels: ['Retail','SME','Corporate','Government'],
+      datasets: [
+        { label:'Delivered', data:[390,360,390,384], backgroundColor:'rgba(67,233,123,.7)', borderRadius:3 },
+        { label:'Shipped',   data:[50, 52, 50, 46],  backgroundColor:'rgba(108,99,255,.7)' },
+        { label:'Cancelled', data:[47, 46, 45, 45],  backgroundColor:'rgba(255,101,132,.7)' },
+        { label:'Returned',  data:[24, 24, 24, 23],  backgroundColor:'rgba(249,168,37,.7)' },
+      ]
+    },
+    options: { responsive:true, scales:{x:{stacked:true,grid:{color:'#1c2030'},ticks:{color:'#7b82a0'}},y:{stacked:true,grid:{color:'#1c2030'},ticks:{color:'#7b82a0'}}},
+      plugins:{legend:{labels:{color:'#7b82a0',font:{size:10}}}} }
+  });
+
+  // STORE TABLE
+  const stBody = document.getElementById('storeTable');
+  topStores.forEach((s,i) => {
+    const rCls = i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-other';
+    const regionCols = {North:'badge-blue',West:'badge-green',South:'badge-gold',East:'badge-red'};
+    stBody.innerHTML += `<tr>
+      <td><span class="rank-badge ${rCls}">${i+1}</span></td>
+      <td>${s.name}</td>
+      <td>${s.city}</td>
+      <td><span class="kpi-badge ${regionCols[s.region]||'badge-blue'}">${s.region}</span></td>
+      <td>${fmt(s.rev)}</td>
+      <td>
+        <div class="prog-bar-wrap"><div class="prog-bar" style="width:${(s.rev/7889627*100).toFixed(0)}%;background:${COLORS[i%COLORS.length]}"></div></div>
+      </td>
+    </tr>`;
+  });
+
+  // INVENTORY — Stock Health Donut
+  const sctx = document.getElementById('stockHealth').getContext('2d');
+  new Chart(sctx, {
+    type:'doughnut',
+    data:{labels:['Healthy (OK)','Low Stock','Out of Stock'],
+          datasets:[{data:[168,110,22],backgroundColor:['rgba(67,233,123,.8)','rgba(249,168,37,.8)','rgba(255,101,132,.8)'],borderColor:'#0d0f14',borderWidth:3}]},
+    options:{cutout:'60%',responsive:true,plugins:{legend:{labels:{color:'#7b82a0',font:{size:11}}}}}
+  });
+
+  // INVENTORY — Stock by Category
+  bar('stockCat',
+    ['Electronics','Furniture','Accessories','Stationery'],
+    [
+      {label:'OK',       data:[42,38,50,38], backgroundColor:'rgba(67,233,123,.7)',  borderRadius:3},
+      {label:'Low',      data:[28,30,20,32], backgroundColor:'rgba(249,168,37,.7)',  borderRadius:3},
+      {label:'Out',      data:[5,  6,  5,  6], backgroundColor:'rgba(255,101,132,.7)', borderRadius:3},
+    ]);
+
+  // INVENTORY — Alert List
+  const alerts = [
+    { store:'S02 – Mumbai Andheri',  product:'Laptop',          stock:0,  reorder:5,  status:'OUT OF STOCK' },
+    { store:'S05 – Jaipur MI Rd',    product:'Wireless Mouse',  stock:2,  reorder:15, status:'REORDER NOW'  },
+    { store:'S07 – Chennai T Nagar', product:'Monitor 24 inch', stock:4,  reorder:10, status:'REORDER NOW'  },
+    { store:'S01 – Delhi Central',   product:'Printer',         stock:0,  reorder:8,  status:'OUT OF STOCK' },
+    { store:'S09 – Pune Kothrud',    product:'Office Chair',    stock:3,  reorder:12, status:'REORDER NOW'  },
+    { store:'S11 – Kolkata Park St', product:'Tablet',          stock:1,  reorder:6,  status:'REORDER NOW'  },
+  ];
+  const aDiv = document.getElementById('inventoryAlerts');
+  alerts.forEach(a => {
+    const isOut = a.status === 'OUT OF STOCK';
+    aDiv.innerHTML += `
+      <div class="card ${isOut?'stock-alert':'stock-alert'}" style="margin-bottom:8px;padding:12px 18px;border-radius:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-weight:600;font-size:.85rem">${a.product}</div>
+            <div style="font-size:.75rem;color:var(--muted);margin-top:3px">${a.store}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:16px">
+            <div style="text-align:right">
+              <div style="font-size:.72rem;color:var(--muted)">Current / Reorder</div>
+              <div style="font-weight:700;font-size:.9rem">${a.stock} / ${a.reorder}</div>
+            </div>
+            <span class="status ${isOut?'status-cancelled':'status-returned'}">${a.status}</span>
+          </div>
+        </div>
+      </div>`;
+  });
+
+};
+</script>
+</body>
+</html>
